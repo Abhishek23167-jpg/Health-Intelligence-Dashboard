@@ -733,8 +733,8 @@ def display_login_screen(df):
             st.rerun()
 
 # --- 5. Main Application Execution ---
-def password_protected_app():
-    # --- This is the main body of your application ---
+def run_app():
+    """This function contains the core logic of your Streamlit app."""
     df_full, ACTIVE_DISEASE_CONFIG, discrepancy_summaries = load_and_prepare_data(FINAL_DATA_FILE, DISEASE_MODELS_INFO.copy())
     model_artifacts = load_all_model_artifacts(ACTIVE_DISEASE_CONFIG)
 
@@ -766,27 +766,42 @@ def password_protected_app():
     else:
         st.error("Application cannot start because the main data file failed to load.")
 
+def check_password():
+    """Returns `True` if the user has entered the correct password."""
+    
+    # Check if we are running on Streamlit Cloud by trying to access secrets.
+    # This is the robust way to check for the existence of secrets without crashing.
+    try:
+        # This line will raise an error if no secrets are set (i.e., running locally)
+        password = st.secrets["APP_PASSWORD"]
+    except st.errors.StreamlitAPIException as e:
+        # If secrets are not found, we assume local development and grant access.
+        if "No secrets found" in str(e):
+             return True
+        raise e # Re-raise other potential API errors
+    except KeyError:
+        # This handles the case where a secrets file exists but APP_PASSWORD is not in it.
+        st.error("`APP_PASSWORD` secret not found. Please set it in your Streamlit Cloud settings.")
+        return False
 
-# --- This is the new password checking logic ---
-if __name__ == "__main__":
+    # --- If we are here, it means we are on the cloud and secrets are available ---
     if "password_correct" not in st.session_state:
         st.session_state.password_correct = False
 
-    # Check if secrets are loaded, which indicates it's running on the cloud
-    if hasattr(st, 'secrets') and "APP_PASSWORD" in st.secrets:
-        # Cloud execution path
-        if not st.session_state.password_correct:
-            st.title("Organizational Health Intelligence Platform")
-            st.header("Secure Login")
-            password_input = st.text_input("Enter Password to Access", type="password")
-            
-            if password_input == st.secrets["APP_PASSWORD"]:
-                st.session_state.password_correct = True
-                st.rerun()
-            elif password_input:
-                st.error("The password you entered is incorrect.")
-        else:
-            password_protected_app()
+    if not st.session_state.password_correct:
+        st.title("Organizational Health Intelligence Platform")
+        st.header("Secure Login")
+        password_input = st.text_input("Enter Password to Access", type="password", key="password_input")
+        
+        if password_input == password:
+            st.session_state.password_correct = True
+            st.rerun()
+        elif password_input:
+            st.error("The password you entered is incorrect.")
+        return False
     else:
-        # Local execution path (no password needed)
-        password_protected_app()
+        return True
+
+if __name__ == "__main__":
+    if check_password():
+        run_app()
