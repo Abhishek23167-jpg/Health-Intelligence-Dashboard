@@ -733,7 +733,8 @@ def display_login_screen(df):
             st.rerun()
 
 # --- 5. Main Application Execution ---
-if __name__ == "__main__":
+def password_protected_app():
+    # --- This is the main body of your application ---
     df_full, ACTIVE_DISEASE_CONFIG, discrepancy_summaries = load_and_prepare_data(FINAL_DATA_FILE, DISEASE_MODELS_INFO.copy())
     model_artifacts = load_all_model_artifacts(ACTIVE_DISEASE_CONFIG)
 
@@ -764,3 +765,28 @@ if __name__ == "__main__":
                 display_executive_dashboard(df_processed, enabled_diseases)
     else:
         st.error("Application cannot start because the main data file failed to load.")
+
+
+# --- This is the new password checking logic ---
+if __name__ == "__main__":
+    if "password_correct" not in st.session_state:
+        st.session_state.password_correct = False
+
+    # Check if secrets are loaded, which indicates it's running on the cloud
+    if hasattr(st, 'secrets') and "APP_PASSWORD" in st.secrets:
+        # Cloud execution path
+        if not st.session_state.password_correct:
+            st.title("Organizational Health Intelligence Platform")
+            st.header("Secure Login")
+            password_input = st.text_input("Enter Password to Access", type="password")
+            
+            if password_input == st.secrets["APP_PASSWORD"]:
+                st.session_state.password_correct = True
+                st.rerun()
+            elif password_input:
+                st.error("The password you entered is incorrect.")
+        else:
+            password_protected_app()
+    else:
+        # Local execution path (no password needed)
+        password_protected_app()
